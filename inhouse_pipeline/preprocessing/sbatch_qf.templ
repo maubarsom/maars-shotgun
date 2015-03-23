@@ -1,0 +1,21 @@
+#!/bin/bash
+#SBATCH -A b2012214
+#SBATCH -p core -n <threads> 
+#SBATCH -t 10:00:00
+#SBATCH -J <sample>-qf
+#SBATCH -o qf-%j.out
+#SBATCH -e qf-%j.err
+#SBATCH --tmp=64000
+
+#SBATCH --mail-user mauricio.barrientos@ki.se
+#SBATCH --mail-type=FAIL
+
+sample_name=<sample>
+step_makefile=/proj/b2012214/nobackup/private/read_preproc/scripts/qf.mak
+cfg_file=/proj/b2012214/nobackup/private/read_preproc/scripts/uppmax.cfg
+
+set -euo pipefail
+
+mkdir -p qf
+cd qf
+make -j 2 -f $step_makefile sample_name=$sample_name read_folder=../reads threads=<threads> TMP_DIR="$SNIC_TMP" cfg_file="$cfg_file"

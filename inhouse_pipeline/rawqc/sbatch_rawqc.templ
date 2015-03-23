@@ -1,0 +1,18 @@
+#!/bin/bash
+#SBATCH -A b2012214
+#SBATCH -p core -n <threads> 
+#SBATCH -t 5:00:00
+#SBATCH -J <sample>-rawqc
+#SBATCH -o rawqc-%j.out
+#SBATCH -e rawqc-%j.err
+#SBATCH --tmp=20480
+
+#SBATCH --mail-user mauricio.barrientos@ki.se
+#SBATCH --mail-type=FAIL
+
+module load java/sun_jdk1.7.0_25
+
+sample_name=<sample>
+rawqc_makefile=/proj/b2012214/nobackup/private/raw_qc/raw_qc.mak
+
+make -f $rawqc_makefile sample_name=$sample_name read_folder=reads threads=<threads> TMP_DIR=$SNIC_TMP

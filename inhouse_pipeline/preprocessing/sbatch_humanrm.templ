@@ -1,0 +1,21 @@
+#!/bin/bash
+#SBATCH -A b2012214
+#SBATCH -p core -n <threads> 
+#SBATCH -t 5:00:00
+#SBATCH -J <sample>-humanrm
+#SBATCH -o humanrm-%j.out
+#SBATCH -e humanrm-%j.err
+#SBATCH --tmp=20480
+
+#SBATCH --mail-user mauricio.barrientos@ki.se
+#SBATCH --mail-type=FAIL
+
+sample_name=<sample>
+step_makefile=/proj/b2012214/nobackup/private/read_preproc/scripts/human_rm.mak
+cfg_file=/proj/b2012214/nobackup/private/read_preproc/scripts/uppmax.cfg
+
+set -euo pipefail
+
+mkdir -p humanrm
+cd humanrm
+make -f $step_makefile IN_PREFIX=../qf/out/"$sample_name"_qf threads=<threads> TMP_DIR="$SNIC_TMP" cfg_file="$cfg_file"
