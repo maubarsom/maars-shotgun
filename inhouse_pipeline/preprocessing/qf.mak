@@ -74,6 +74,7 @@ $(R2_TMP) : $(wildcard $(read_folder)/*R2*.f*q.gz  $(read_folder)/*_2.f*q.gz)
 	$(CUTADAPT_BIN) -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC --overlap=5 --error-rate=0.1 -o $@ $< 
 
 1_cutadapt/%_R2.fq.gz: $(R2_TMP)
+	mkdir -p $(dir $@)
 	#Remove reverse complement of Illumina TruSeq Universal Adapter from reverse pair
 	$(CUTADAPT_BIN) -a AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT --overlap=5 --error-rate=0.1 -o $@ $< 
 
