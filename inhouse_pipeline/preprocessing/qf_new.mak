@@ -29,12 +29,19 @@ $(error Variable 'read_folder' is not defined)
 endif
 
 #Temporary merged R1 and R2
-R1_TMP := $(TMP_DIR)/$(sample_name)_1.fastq.gz
-R2_TMP := $(TMP_DIR)/$(sample_name)_2.fastq.gz
+R1_TMP := $(TMP_DIR)/$(sample_name)_1.$(fq_ext)
+R2_TMP := $(TMP_DIR)/$(sample_name)_2.$(fq_ext)
 
 #Outfile
-OUT_DIR := out
 OUT_PREFIX := $(sample_name)_qf
+
+#Input read autodetection settings
+R1_filter:=_1.
+R2_filter:=_2.
+fq_ext:=fastq.gz
+
+#filter_fx( substring, list): Returns all items in list that contains substring
+filter_fx = $(foreach file,$(2),$(if $(findstring $(1),$(file)),$(file)))
 
 #Load configuration file
 ifndef cfg_file
@@ -52,20 +59,19 @@ MIN_READ_LENGTH := 50
 
 .PHONY: all
 
-all: $(addprefix $(OUT_DIR)/$(OUT_PREFIX),_R1.fq.gz _R2.fq.gz _single.fq.gz)
+all: $(addprefix $(OUT_PREFIX),_R1.fq.gz _R2.fq.gz _single.fq.gz)
 
-$(OUT_DIR)/$(OUT_PREFIX)_%.fq.gz: 2_nesoni/$(sample_name)_%.fq.gz
-	mkdir -p $(dir $@)
+$(OUT_PREFIX)_%.fq.gz: 2_nesoni/$(sample_name)_%.fq.gz
 	ln -f $(shell pwd)/$^ $@
 
 #*************************************************************************
 # Merge all Forward and Reverse reads into a single file
 #*************************************************************************
-$(R1_TMP) : $(wildcard $(read_folder)/*R1*.f*q.gz  $(read_folder)/*_1.f*q.gz)
-	cat $^ > $@
+$(R1_TMP): $(wildcard $(read_folder)/*.$(fq_ext))
+	cat $(call filter_fx,$(R1_filter),$^) >> $@
 
-$(R2_TMP) : $(wildcard $(read_folder)/*R2*.f*q.gz  $(read_folder)/*_2.f*q.gz)
-	cat $^ > $@
+$(R2_TMP): $(wildcard $(read_folder)/*.$(fq_ext))
+	cat $(call filter_fx,$(R2_filter),$^) >> $@
 
 #*************************************************************************
 # Call to NESONI for light quality trimming
