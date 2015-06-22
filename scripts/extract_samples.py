@@ -4,7 +4,7 @@ and link the appropriate fastq files
 """
 #!/usr/bin/python
 import os
-# import subprocess
+import subprocess
 import os.path
 import sys
 import pandas as pd
@@ -35,5 +35,8 @@ for idx,sample in sample_list.iterrows():
         os.makedirs(os.path.join(out_folder,sample["sample_id"],"reads"))
     except OSError as e:
         print e
-    os.popen("ln -s -t {} {}".format( os.path.join(out_folder,sample["sample_id"],"reads"),
-                                      " ".join( glob.glob(os.path.join(sample_folder,sample["RunID"],sample["ScilifeID"],"qf/3_out/*.fq.gz")))))
+    cmd = "ln -s -t {} {}".format( os.path.join(out_folder,sample["sample_id"],"reads"),
+                                      " ".join( glob.glob(os.path.join(sample_folder,sample["RunID"],sample["ScilifeID"],"*.fastq.gz"))))
+    ret = subprocess.call(cmd,shell=True)
+    if ret != 0:
+        sys.stderr.write("Cmd: {} failed with return status {}\n".format(cmd,ret))
