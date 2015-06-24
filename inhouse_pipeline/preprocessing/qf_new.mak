@@ -28,13 +28,6 @@ ifndef read_folder
 $(error Variable 'read_folder' is not defined)
 endif
 
-#Temporary merged R1 and R2
-R1_TMP := $(TMP_DIR)/$(sample_name)_1.$(fq_ext)
-R2_TMP := $(TMP_DIR)/$(sample_name)_2.$(fq_ext)
-
-#Outfile
-OUT_PREFIX := $(sample_name)_qf
-
 #Input read autodetection settings
 R1_filter:=_1.
 R2_filter:=_2.
@@ -49,6 +42,13 @@ ifndef cfg_file
 endif
 include $(cfg_file)
 
+#Filenames
+OUT_PREFIX := $(sample_name)_qf
+
+#Temporary merged R1 and R2
+R1_TMP := $(TMP_DIR)/$(sample_name)_1.$(fq_ext)
+R2_TMP := $(TMP_DIR)/$(sample_name)_2.$(fq_ext)
+
 MIN_READ_LENGTH := 50
 
 #Delete produced files if step fails
@@ -61,17 +61,17 @@ MIN_READ_LENGTH := 50
 
 all: $(addprefix $(OUT_PREFIX),_R1.fq.gz _R2.fq.gz _single.fq.gz)
 
-$(OUT_PREFIX)_%.fq.gz: 2_nesoni/$(sample_name)_%.fq.gz
+$(OUT_PREFIX)_%.fq.gz: 2_cutadapt/$(sample_name)_%.fq.gz
 	ln -f $(shell pwd)/$^ $@
 
 #*************************************************************************
 # Merge all Forward and Reverse reads into a single file
 #*************************************************************************
 $(R1_TMP): $(wildcard $(read_folder)/*.$(fq_ext))
-	cat $(call filter_fx,$(R1_filter),$^) >> $@
+	cat $(call filter_fx,$(R1_filter),$^) > $@
 
 $(R2_TMP): $(wildcard $(read_folder)/*.$(fq_ext))
-	cat $(call filter_fx,$(R2_filter),$^) >> $@
+	cat $(call filter_fx,$(R2_filter),$^) > $@
 
 #*************************************************************************
 # Call to NESONI for light quality trimming
@@ -79,7 +79,7 @@ $(R2_TMP): $(wildcard $(read_folder)/*.$(fq_ext))
 1_nesoni/%_R1.fq.gz 1_nesoni/%_R2.fq.gz 1_nesoni/%_single.fq.gz: $(R1_TMP) $(R2_TMP)
 	mkdir -p $(dir $@)
 	$(NESONI_BIN) clip --adaptor-clip no --homopolymers yes --qoffset 33 --quality 5 --length 50 \
-		--out-separate yes $(nesoni_out_prefix) pairs: $^
+		--out-separate yes $(dir $@)/$* pairs: $^
 
 #*************************************************************************
 # Call to CUTADAPT to remove Illumina adapters from short fragments
