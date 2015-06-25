@@ -65,16 +65,24 @@ generate_fastqc_targets = $(patsubst %.$(fq_ext),%$(fastqc_txt_ext),$(notdir $(1
 
 .SECONDARY:
 
-.PHONY: fastqc_all fastqc_raw clean
+.PHONY: fastqc clean
 
-fastqc_all: $(call generate_fastqc_targets, $(wildcard $(read_folder)/*.$(fq_ext)) )
-
-fastqc_raw: $(sample_name)_raw_1$(fastqc_txt_ext) $(sample_name)_raw_2$(fastqc_txt_ext)
+ifdef RAW
+fastqc: $(sample_name)_raw_1$(fastqc_txt_ext) $(sample_name)_raw_2$(fastqc_txt_ext)
+else
+fastqc: $(call generate_fastqc_targets, $(wildcard $(read_folder)/*.$(fq_ext)) )
+endif
 
 #*********************RAW MODE **************************
-ifeq "$(words $(R1_files))" "$(words $(R2_files))"
-#If there are files
-ifneq "0" "$(words $(R1_files))"
+ifdef RAW
+ifneq "$(words $(R1_files))" "$(words $(R2_files))"
+$(error Different number of R1 ($(words $(R1_files))) and R2 ($(words $(R2_files))) files)
+endif
+
+ifeq "0" "$(words $(R1_files))"
+$(error "No R1 or R2 files")
+endif
+
 ifeq "1" "$(words $(R1_files))"
 # If only one R1 and one R2 file, create links to TMP_DIR
 $(TMP_DIR)/$(sample_name)_raw_1.$(fq_ext) : $(R1_files)
@@ -82,7 +90,6 @@ $(TMP_DIR)/$(sample_name)_raw_1.$(fq_ext) : $(R1_files)
 
 $(TMP_DIR)/$(sample_name)_raw_2.$(fq_ext) : $(R2_files)
 	ln -s $(shell pwd)/$^ $@
-#********
 else
 # If more than one R1 and R2
 # Merge all Forward and Reverse reads into a single file
@@ -93,9 +100,7 @@ $(TMP_DIR)/$(sample_name)_raw_2.$(fq_ext) : $(R2_files)
 	cat $^ > $@
 #*********
 endif
-else
-$(error "No R1 or R2 files")
-endif
+
 endif
 
 #*************************************************************************
