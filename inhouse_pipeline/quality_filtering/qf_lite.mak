@@ -28,6 +28,20 @@ ifndef read_folder
 $(error Variable 'read_folder' is not defined)
 endif
 
+#General run params, passed directly to make!
+ifndef threads
+        $(error 'threads' variable not defined)
+endif
+
+#Temp folder for intermediate steps.
+ifndef TMP_DIR
+        $(error 'TMP_DIR' variable not defined)
+endif
+
+#Application Paths
+export CUTADAPT_BIN := cutadapt
+export NESONI_BIN := nesoni
+
 #Input read autodetection settings
 R1_filter:=_1.
 R2_filter:=_2.
@@ -35,12 +49,6 @@ fq_ext:=fastq.gz
 
 #filter_fx( substring, list): Returns all items in list that contains substring
 filter_fx = $(foreach file,$(2),$(if $(findstring $(1),$(file)),$(file)))
-
-#Load configuration file
-ifndef cfg_file
-	$(error Config file variable 'cfg_file' not set)
-endif
-include $(cfg_file)
 
 #Filenames
 OUT_PREFIX := $(sample_name)_qf
