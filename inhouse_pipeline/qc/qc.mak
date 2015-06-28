@@ -117,7 +117,7 @@ $(sample_name)_raw_%$(fastqc_ext): $(TMP_DIR)/$(sample_name)_raw_%.$(fq_ext)
 	$(FASTQC_RECIPE)
 
 %$(fastqc_txt_ext): %$(fastqc_ext)
-	unzip -p $<  $*_fastqc/fastqc_data.txt > $@
+	unzip -p $<  $(basename $<)/fastqc_data.txt > $@
 
 #*************************************************************************
 #CLEANING RULES
