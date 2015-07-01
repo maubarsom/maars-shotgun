@@ -95,15 +95,17 @@ $(R2_TMP): $(wildcard $(read_folder)/*.$(fq_ext))
 2_cutadapt/%_R1.fq.gz 2_cutadapt/%_R2.fq.gz: 1_nesoni/%_R1.fq.gz 1_nesoni/%_R2.fq.gz
 	mkdir -p $(dir $@)
 	#Remove Illumina double(or single index) adapters from fwd and rev pairs
-	$(CUTADAPT_BIN) --cut=6 -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC -A AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT \
-									--overlap=5 --error-rate=0.1 --minimum-length $(MIN_READ_LENGTH) \
-									-o $(dir $@)/$*_R1.fq.gz -p $(dir $@)/$*_R2.fq.gz $< $(word 2,$^)
+	$(CUTADAPT_BIN) -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC -A AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT \
+			-a AGCACACGTCTGAACTCCAGTCAC -A AGCGTCGTGTAGGGAAAGAGTGT \
+			--overlap=5 --error-rate=0.1 --minimum-length $(MIN_READ_LENGTH) \
+			-o $(dir $@)/$*_R1.fq.gz -p $(dir $@)/$*_R2.fq.gz $< $(word 2,$^)
 
 2_cutadapt/%_single.fq.gz: 1_nesoni/%_single.fq.gz
 	#Remove Illumina double(or single index) adapters from singletons
-	$(CUTADAPT_BIN) --cut=6 -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC -a AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT \
-									--overlap=5 --error-rate=0.1 --minimum-length $(MIN_READ_LENGTH) \
-									-o $@ $<
+	$(CUTADAPT_BIN) -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC -a AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT \
+			-a AGCACACGTCTGAACTCCAGTCAC -a AGCGTCGTGTAGGGAAAGAGTGT \
+			--overlap=5 --error-rate=0.1 --minimum-length $(MIN_READ_LENGTH) \
+			-o $@ $<
 
 .PHONY: clean
 clean:
