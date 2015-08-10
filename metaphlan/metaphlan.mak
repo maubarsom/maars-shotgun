@@ -22,7 +22,7 @@ endif
 
 #Metaphlan bin and db config
 #Uppmax
-mpa_dir := /home/mauricio/local/share/biobakery-metaphlan2-b3347c1d194d
+mpa_dir := /home/mauricio/local/share/biobakery-metaphlan2-1c047f491780
 #Hamlet
 #mpa_dir := /labcommon/tools/metaphlan2
 
@@ -39,10 +39,10 @@ raw: $(sample_name)_raw_metaphlan.txt
 #******************************************************************
 # Raw reads
 #******************************************************************
-$(TMP_DIR)/reads_raw.fq : $(wildcard $(read_folder)/*.fastq.gz)
-	zcat $^ >> $@
+$(TMP_DIR)/reads_raw.fq.gz : $(wildcard $(read_folder)/*.fastq.gz)
+	cat $^ >> $@
 
-%_raw_metaphlan.txt: $(TMP_DIR)/reads_raw.fq
+%_raw_metaphlan.txt: $(TMP_DIR)/reads_raw.fq.gz
 	$(mpa_bin) --mpa_pkl $(mpa_pkl) --bowtie2db $(mpa_bowtie2db) \
 		--bowtie2out $*.bowtie2.bz2 --nproc $(threads) --input_type multifastq \
 		--biom $*_raw_metaphlan.biom $< $@
