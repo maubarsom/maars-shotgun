@@ -65,7 +65,7 @@ singles := $(wildcard $(read_folder)/*_single.fq.gz)
 
 .PHONY: all
 
-all: $(addprefix $(OUT_PREFIX)_,R1.fq R2.fq se.fq)
+all: $(addprefix $(OUT_PREFIX)_,R1.fq.gz R2.fq.gz se.fq.gz)
 all: $(addprefix stats/$(OUT_PREFIX)_,pe.bam.flgstat se.bam.flgstat)
 
 #*************************************************************************
@@ -103,15 +103,25 @@ stats/%.bam.flgstat: $(MAPPER)/%.bam
 #*************************************************************************
 #Extract unmapped reads using Samtools / Picard Tools
 #*************************************************************************
+#Filtering flags
+#Conservative: -F2 (remove only properly mapped pairs)
+#Aggressive: -f12 (keep only reads with no kind of mapping to human)
 $(TMP_DIR)/%_unmapped_pe.bam: $(MAPPER)/%_pe.bam
-	$(SAMTOOLS_BIN) view -f12 -hb -o $@ $^
-	#$(SAMTOOLS_BIN) view -F2 -hb -o $@ $^
+	$(SAMTOOLS_BIN) view -F2 -hb -o $@ $^
 
 $(TMP_DIR)/%_unmapped_se.bam: $(MAPPER)/%_se.bam
 	$(SAMTOOLS_BIN) view -f4 -hb -o $@ $^
 
-%_R1.fq %_R2.fq: $(TMP_DIR)/%_unmapped_pe.bam
+%_R1.fq.gz %_R2.fq.gz: $(TMP_DIR)/%_unmapped_pe.bam
 	$(PICARD_BIN) SamToFastq INPUT=$^ FASTQ=$*_R1.fq SECOND_END_FASTQ=$*_R2.fq
+	gzip $*_R1.fq
+	gzip $*_R2.fq
 
-%_se.fq: $(TMP_DIR)/%_unmapped_se.bam
-	$(PICARD_BIN) SamToFastq INPUT=$^ FASTQ=$@
+%_se.fq.gz: $(TMP_DIR)/%_unmapped_se.bam
+	$(PICARD_BIN) SamToFastq INPUT=$^ FASTQ=$*_se.fq
+	gzip $*_se.fq
+
+.PHONY: clean
+
+clean: 
+	rm *.fq
