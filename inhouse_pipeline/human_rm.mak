@@ -1,9 +1,9 @@
-# Human contamination removal pipeline
+# Host and PhiX contamination removal pipeline
 
 # Author: Mauricio Barrientos-Somarribas
 # Email:  mauricio.barrientos@ki.se
 
-# Copyright 2014 Mauricio Barrientos-Somarribas
+# Copyright 2015 Mauricio Barrientos-Somarribas
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -65,17 +65,27 @@ singles := $(wildcard $(read_folder)/*_single.fq.gz)
 
 .PHONY: all
 
-all: $(addprefix $(OUT_PREFIX)_,R1.fq.gz R2.fq.gz se.fq.gz)
-all: $(addprefix stats/$(OUT_PREFIX)_,pe.bam.flgstat se.bam.flgstat)
+FASTQ_OUT := $(addprefix $(OUT_PREFIX)_,1.fastq.gz 2.fastq.gz single.fastq.gz)
+
+all: $(FASTQ_OUT)
+all: $(addprefix stats/$(OUT_PREFIX)_,pe.$(MAPPER).bam.flgstat se.$(MAPPER).bam.flgstat)
+
+md5_files: $(MAPPER)/$(OUT_PREFIX)_pe.bam.md5 $(MAPPER)/$(OUT_PREFIX)_se.bam.md5
+md5_files: $(addsuffix .md5,$(FASTQ_OUT))
+
 
 #*************************************************************************
 #Map to human genome with BWA MEM
 #*************************************************************************
-$(bwa_hg)_pe.sam: $(R1) $(R2)
-$(bwa_hg)_se.sam: $(singles)
+bwa_idx:= /proj/b2012214/db/bwa/grch38_phix
 
-bwa/%_pe.bam bwa/%_se.bam:
-	$(BWA_BIN) mem -t $(threads) -T 30 -M $(bwa_hg_idx) $^ | $(SAMTOOLS_BIN) view -F 256 -hSb -o $@ -
+bwa/%_pe.bam: $(R1) $(R2)
+	mkdir -p $(dir $@)
+	$(BWA_BIN) mem -t $(threads) -T 30 -M $(bwa_idx) $^ | $(SAMTOOLS_BIN) view -F 256 -hSb -o $@ -
+
+bwa/%_se.bam: $(singles)
+	mkdir -p $(dir $@)
+	$(BWA_BIN) mem -t $(threads) -T 30 -M $(bwa_idx) $^ | $(SAMTOOLS_BIN) view -F 256 -hSb -o $@ -
 
 #*************************************************************************
 #Map to human genome with Bowtie2 with --local
@@ -96,7 +106,7 @@ bowtie2/%_se.bam: $(singles)
 #*************************************************************************
 #Calculate stats
 #*************************************************************************
-stats/%.bam.flgstat: $(MAPPER)/%.bam
+stats/%.$(MAPPER).bam.flgstat: $(MAPPER)/%.bam
 	mkdir -p $(dir $@)
 	$(SAMTOOLS_BIN) flagstat $< > $@
 
@@ -112,16 +122,22 @@ $(TMP_DIR)/%_unmapped_pe.bam: $(MAPPER)/%_pe.bam
 $(TMP_DIR)/%_unmapped_se.bam: $(MAPPER)/%_se.bam
 	$(SAMTOOLS_BIN) view -f4 -hb -o $@ $^
 
-%_R1.fq.gz %_R2.fq.gz: $(TMP_DIR)/%_unmapped_pe.bam
-	$(PICARD_BIN) SamToFastq INPUT=$^ FASTQ=$*_R1.fq SECOND_END_FASTQ=$*_R2.fq
-	gzip $*_R1.fq
-	gzip $*_R2.fq
+%_1.fastq.gz %_2.fastq.gz: $(TMP_DIR)/%_unmapped_pe.bam
+	$(PICARD_BIN) SamToFastq INPUT=$^ FASTQ=$*_1.fastq SECOND_END_FASTQ=$*_2.fastq
+	gzip $*_1.fastq
+	gzip $*_2.fastq
 
-%_se.fq.gz: $(TMP_DIR)/%_unmapped_se.bam
-	$(PICARD_BIN) SamToFastq INPUT=$^ FASTQ=$*_se.fq
-	gzip $*_se.fq
+%_single.fastq.gz: $(TMP_DIR)/%_unmapped_se.bam
+	$(PICARD_BIN) SamToFastq INPUT=$^ FASTQ=$*_single.fastq
+	gzip $*_single.fastq
+
+#*************************************************************************
+# Calculate checksums
+#*************************************************************************
+%.md5 : %
+	md5sum $< > $@
 
 .PHONY: clean
 
-clean: 
+clean:
 	rm *.fq
