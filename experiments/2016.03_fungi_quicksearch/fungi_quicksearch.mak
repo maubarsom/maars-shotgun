@@ -1,4 +1,4 @@
-# Pipeline to map reads against staph delta toxin
+# Pipeline to map reads against Fungal species genomes
 
 # Author: Mauricio Barrientos-Somarribas
 # Email:  mauricio.barrientos@ki.se
@@ -48,7 +48,7 @@ endif
 BWA_BIN := bwa
 BOWTIE2_BIN := bowtie2
 SAMTOOLS_BIN := samtools
-PICARD_BIN := java -Xmx16g -jar /users/maubar/tools/picard-tools/1.138/picard.jar
+PICARD_BIN := java -Xmx16g -jar ~/tools/picard-tools/2.1.1/picard.jar
 
 #Input files
 R1 := $(wildcard $(read_folder)/*_1.fastq.gz)
@@ -61,22 +61,24 @@ singles := $(wildcard $(read_folder)/*_single.fastq.gz)
 #Avoids the deletion of files because of gnu make behavior with implicit rules
 .SECONDARY:
 
-.PHONY: all bams toxin_fastqs md5_files build_bwa_idxs
+.PHONY: all bams stats md5_files build_bwa_idxs
 
-all: bams toxin_fastqs
+all: bams stats
 
-#bams: stats/$(OUT_PREFIX)_pe.$(MAPPER).bam.flgstat
-bams: stats/$(sample_name)_deltatoxin.$(MAPPER).bam.flgstat
-bams: stats/$(sample_name)_alphatoxin.$(MAPPER).bam.flgstat
+bams: $(MAPPER)/$(sample_name)_c_albicans.bam
+# bams: $(MAPPER)/$(sample_name)_t_rubrus.bam
 
-toxin_fastqs: fastq/$(sample_name)_deltatoxin.fastq
-toxin_fastqs: fastq/$(sample_name)_alphatoxin.fastq
+stats: $(addprefix stats/c_albicans.$(MAPPER).bam,.flgstat .stats .depth)
+# stats: $(addprefix stats/t_rubrus.$(MAPPER).bam,.flgstat .stats .depth)
 
-#md5_files: $(MAPPER)/$(OUT_PREFIX)_pe.bam.md5
-md5_files: $(MAPPER)/$(sample_name)_deltatoxin.bam.md5
-md5_files: $(MAPPER)/$(sample_name)_alphatoxin.bam.md5
 
-build_bwa_idxs: bwa_idx/s_aureus_delta_toxin.bwt bwa_idx/s_aureus_alpha_toxin.bwt
+# c_albicans_fastqs: fastq/$(sample_name)_c_albicans.fastq
+# t_rubrus_fastqs: fastq/$(sample_name)_t_rubrus.fastq
+
+# md5_files: $(MAPPER)/$(sample_name)_c_albicans.bam.md5
+# md5_files: $(MAPPER)/$(sample_name)_t_rubrus.bam.md5
+
+build_bwa_idxs: bwa_idx/c_albicans.bwt bwa_idx/t_rubrus.bwt
 
 #*************************************************************************
 # Build BWA index
@@ -88,24 +90,22 @@ bwa_idx/%.bwt: fasta/%.fasta
 #*************************************************************************
 #Map to human genome with BWA MEM
 #*************************************************************************
-deltatoxin_bwa_idx:= /users/k1217790/fsbio/microbiomics/2015.11_deltatoxin/bwa_idx/s_aureus_delta_toxin
-alphatoxin_bwa_idx:= /users/k1217790/fsbio/microbiomics/2015.11_deltatoxin/bwa_idx/s_aureus_alpha_toxin
+c_albicans_bwa_idx:= ~/fsbio/2016.03_fungi_quicksearch/bwa_idx/c_albicans
+t_rubrus_bwa_idx:= ~/fsbio/2016.03_fungi_quicksearch/bwa_idx/t_rubrus
 
 #-F 260 = keep only mapped reads,no secondary mappings (256 + 4)
-bwa/%_deltatoxin.bam: $(R1) $(R2) $(singles)
+#-f 2 Keep reads mapped in proper pair -> we want to be a bit stringent here
+bwa/%_c_albicans.bam: $(R1) $(R2) $(singles)
 	mkdir -p $(dir $@)
-	$(BWA_BIN) mem -t $(threads) -T 30 -M $(deltatoxin_bwa_idx) <(cat $^) | $(SAMTOOLS_BIN) view -F 260 -hSb -o $@ -
+	$(BWA_BIN) mem -t $(threads) -T 30 -M $(c_albicans_bwa_idx) $< $(word 2,$^)| $(SAMTOOLS_BIN) view -f2 -F256 -hSb -o $(TMP_DIR)/$*_c_albicans_pe.bam -
+	$(BWA_BIN) mem -t $(threads) -T 30 -M $(c_albicans_bwa_idx) $(word 3,$^) | $(SAMTOOLS_BIN) view -F 260 -hSb -o $(TMP_DIR)/$*_c_albicans_single.bam -
+	$(SAMTOOLS_BIN) sort -@ $(threads) -o $(TMP_DIR)/$*_c_albicans_pe_sorted.bam $(TMP_DIR)/$*_c_albicans_pe.bam
+	$(SAMTOOLS_BIN) sort -@ $(threads) -o $(TMP_DIR)/$*_c_albicans_single_sorted.bam $(TMP_DIR)/$*_c_albicans_single.bam
+	$(SAMTOOLS_BIN) merge -@ $(threads) $(TMP_DIR)/$*_c_albicans_pe_sorted.bam $(TMP_DIR)/$*_c_albicans_single_sorted.bam
 
-bwa/%_alphatoxin.bam: $(R1) $(R2) $(singles)
-	mkdir -p $(dir $@)
-	$(BWA_BIN) mem -t $(threads) -T 30 -M $(alphatoxin_bwa_idx) <(cat $^) | $(SAMTOOLS_BIN) view -F 260 -hSb -o $@ -
-
-#*************************************************************************
-#Extract seqs
-#*************************************************************************
-fastq/%.fastq: bwa/%.bam
-	mkdir -p $(dir $@)
-	$(PICARD_BIN) SamToFastq INPUT=$< FASTQ=$@
+# bwa/%_t_rubrus.bam: $(R1) $(R2) $(singles)
+# 	mkdir -p $(dir $@)
+# 	$(BWA_BIN) mem -t $(threads) -T 30 -M $(t_rubrus_bwa_idx) <(cat $^) | $(SAMTOOLS_BIN) view -F 260 -hSb -o $@ -
 
 #*************************************************************************
 #Calculate stats
@@ -118,15 +118,24 @@ stats/%.$(MAPPER).bam.stats: $(MAPPER)/%.bam
 	mkdir -p $(dir $@)
 	$(SAMTOOLS_BIN) stats $< > $@
 
+#Assumes bams are already sorted
 stats/%.$(MAPPER).bam.depth.gz : $(MAPPER)/%.bam
 	mkdir -p $(dir $@)
-	$(SAMTOOLS_BIN) sort $< | $(SAMTOOLS_BIN) depth - | gzip > $@
+	$(SAMTOOLS_BIN) depth - | gzip > $@
 
 #*************************************************************************
 # Calculate checksums
 #*************************************************************************
 %.md5 : %
 	md5sum $< > $@
+
+#*************************************************************************
+#Extract seqs - Not needed yet
+#*************************************************************************
+# fastq/%.fastq: bwa/%.bam
+# 	mkdir -p $(dir $@)
+# 	$(PICARD_BIN) SamToFastq INPUT=$< FASTQ=$@
+
 
 .PHONY: clean
 
