@@ -66,24 +66,24 @@ singles := $(wildcard $(read_folder)/*_single.fastq.gz)
 all: bams stats
 
 bams: $(MAPPER)/$(sample_name)_c_albicans.bam
-# bams: $(MAPPER)/$(sample_name)_t_rubrus.bam
+# bams: $(MAPPER)/$(sample_name)_t_rubrum.bam
 
-stats: $(addprefix stats/c_albicans.$(MAPPER).bam,.flgstat .stats .depth)
-# stats: $(addprefix stats/t_rubrus.$(MAPPER).bam,.flgstat .stats .depth)
+stats: $(addprefix stats/$(sample_name)_c_albicans.$(MAPPER).bam,.flgstat .stats .depth.gz)
+# stats: $(addprefix stats/$(sample_name)_t_rubrum.$(MAPPER).bam,.flgstat .stats .depth.gz)
 
 
 # c_albicans_fastqs: fastq/$(sample_name)_c_albicans.fastq
-# t_rubrus_fastqs: fastq/$(sample_name)_t_rubrus.fastq
+# t_rubrum_fastqs: fastq/$(sample_name)_t_rubrum.fastq
 
 # md5_files: $(MAPPER)/$(sample_name)_c_albicans.bam.md5
-# md5_files: $(MAPPER)/$(sample_name)_t_rubrus.bam.md5
+# md5_files: $(MAPPER)/$(sample_name)_t_rubrum.bam.md5
 
-build_bwa_idxs: bwa_idx/c_albicans.bwt bwa_idx/t_rubrus.bwt
+build_bwa_idxs: bwa_idx/c_albicans.bwt bwa_idx/t_rubrum.bwt
 
 #*************************************************************************
 # Build BWA index
 #*************************************************************************
-bwa_idx/%.bwt: fasta/%.fasta
+bwa_idx/%.bwt: fasta/%.fna
 	mkdir -p $(dir $@)
 	bwa index -p $(basename $@) $<
 
@@ -91,7 +91,7 @@ bwa_idx/%.bwt: fasta/%.fasta
 #Map to human genome with BWA MEM
 #*************************************************************************
 c_albicans_bwa_idx:= ~/fsbio/2016.03_fungi_quicksearch/bwa_idx/c_albicans
-t_rubrus_bwa_idx:= ~/fsbio/2016.03_fungi_quicksearch/bwa_idx/t_rubrus
+t_rubrum_bwa_idx:= ~/fsbio/2016.03_fungi_quicksearch/bwa_idx/t_rubrum
 
 #-F 260 = keep only mapped reads,no secondary mappings (256 + 4)
 #-f 2 Keep reads mapped in proper pair -> we want to be a bit stringent here
@@ -101,11 +101,12 @@ bwa/%_c_albicans.bam: $(R1) $(R2) $(singles)
 	$(BWA_BIN) mem -t $(threads) -T 30 -M $(c_albicans_bwa_idx) $(word 3,$^) | $(SAMTOOLS_BIN) view -F 260 -hSb -o $(TMP_DIR)/$*_c_albicans_single.bam -
 	$(SAMTOOLS_BIN) sort -@ $(threads) -o $(TMP_DIR)/$*_c_albicans_pe_sorted.bam $(TMP_DIR)/$*_c_albicans_pe.bam
 	$(SAMTOOLS_BIN) sort -@ $(threads) -o $(TMP_DIR)/$*_c_albicans_single_sorted.bam $(TMP_DIR)/$*_c_albicans_single.bam
-	$(SAMTOOLS_BIN) merge -@ $(threads) $(TMP_DIR)/$*_c_albicans_pe_sorted.bam $(TMP_DIR)/$*_c_albicans_single_sorted.bam
+	$(SAMTOOLS_BIN) merge -@ $(threads) $@ $(TMP_DIR)/$*_c_albicans_pe_sorted.bam $(TMP_DIR)/$*_c_albicans_single_sorted.bam
 
-# bwa/%_t_rubrus.bam: $(R1) $(R2) $(singles)
+
+# bwa/%_t_rubrum.bam: $(R1) $(R2) $(singles)
 # 	mkdir -p $(dir $@)
-# 	$(BWA_BIN) mem -t $(threads) -T 30 -M $(t_rubrus_bwa_idx) <(cat $^) | $(SAMTOOLS_BIN) view -F 260 -hSb -o $@ -
+# 	$(BWA_BIN) mem -t $(threads) -T 30 -M $(t_rubrum_bwa_idx) <(cat $^) | $(SAMTOOLS_BIN) view -F 260 -hSb -o $@ -
 
 #*************************************************************************
 #Calculate stats
