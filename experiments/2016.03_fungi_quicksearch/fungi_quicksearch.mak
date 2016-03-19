@@ -66,10 +66,10 @@ singles := $(wildcard $(read_folder)/*_single.fastq.gz)
 all: bams stats
 
 bams: $(MAPPER)/$(sample_name)_c_albicans.bam
-# bams: $(MAPPER)/$(sample_name)_t_rubrum.bam
+bams: $(MAPPER)/$(sample_name)_t_rubrum.bam
 
 stats: $(addprefix stats/$(sample_name)_c_albicans.$(MAPPER).bam,.flgstat .stats .depth.gz)
-# stats: $(addprefix stats/$(sample_name)_t_rubrum.$(MAPPER).bam,.flgstat .stats .depth.gz)
+stats: $(addprefix stats/$(sample_name)_t_rubrum.$(MAPPER).bam,.flgstat .stats .depth.gz)
 
 
 # c_albicans_fastqs: fastq/$(sample_name)_c_albicans.fastq
@@ -104,9 +104,13 @@ bwa/%_c_albicans.bam: $(R1) $(R2) $(singles)
 	$(SAMTOOLS_BIN) merge -@ $(threads) $@ $(TMP_DIR)/$*_c_albicans_pe_sorted.bam $(TMP_DIR)/$*_c_albicans_single_sorted.bam
 
 
-# bwa/%_t_rubrum.bam: $(R1) $(R2) $(singles)
-# 	mkdir -p $(dir $@)
-# 	$(BWA_BIN) mem -t $(threads) -T 30 -M $(t_rubrum_bwa_idx) <(cat $^) | $(SAMTOOLS_BIN) view -F 260 -hSb -o $@ -
+bwa/%_t_rubrum.bam: $(R1) $(R2) $(singles)
+	mkdir -p $(dir $@)
+	$(BWA_BIN) mem -t $(threads) -T 30 -M $(t_rubrum_bwa_idx) $< $(word 2,$^)| $(SAMTOOLS_BIN) view -f2 -F256 -hSb -o $(TMP_DIR)/$*_t_rubrum_pe.bam -
+	$(BWA_BIN) mem -t $(threads) -T 30 -M $(t_rubrum_bwa_idx) $(word 3,$^) | $(SAMTOOLS_BIN) view -F 260 -hSb -o $(TMP_DIR)/$*_t_rubrum_single.bam -
+	$(SAMTOOLS_BIN) sort -@ $(threads) -o $(TMP_DIR)/$*_t_rubrum_pe_sorted.bam $(TMP_DIR)/$*_t_rubrum_pe.bam
+	$(SAMTOOLS_BIN) sort -@ $(threads) -o $(TMP_DIR)/$*_t_rubrum_single_sorted.bam $(TMP_DIR)/$*_t_rubrum_single.bam
+	$(SAMTOOLS_BIN) merge -@ $(threads) $@ $(TMP_DIR)/$*_t_rubrum_pe_sorted.bam $(TMP_DIR)/$*_t_rubrum_single_sorted.bam
 
 #*************************************************************************
 #Calculate stats
