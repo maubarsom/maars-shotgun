@@ -51,7 +51,7 @@ PICARD_BIN := java -Xmx16g -jar ~/tools/picard-tools/2.1.1/picard.jar
 KRAKEN_BIN := ~/tools/kraken/0.10.5-beta/kraken
 KRAKEN_REPORT_BIN := ~/tools/kraken/0.10.5-beta/kraken-report
 
-kraken_db= ~/fsbio/minikraken_20141208
+kraken_db= ~/fsbio/db/minikraken_20141208
 
 #Input files
 R1 := $(wildcard $(read_folder)/*_1.fastq.gz)
@@ -141,16 +141,18 @@ stats/%.$(MAPPER).bam.depth.gz : $(MAPPER)/%.bam
 #*************************************************************************
 fastq/%_1.fastq.gz fastq/%_2.fastq.gz: bwa/%.bam
 	mkdir -p $(dir $@)
-	$(PICARD_BIN) SamToFastq INPUT=$< FASTQ=$(word 1,$@) SECOND_END_FASTQ=$(word 2,$@)
+	$(PICARD_BIN) SamToFastq INPUT=$< FASTQ=fastq/$*_1.fastq.gz SECOND_END_FASTQ=fastq/$*_2.fastq.gz
 
 #*************************************************************************
 # Run Kraken with Minikraken db to detect spurious alignments
 #*************************************************************************
 kraken/%_pe_kraken.out: fastq/%_1.fastq.gz fastq/%_2.fastq.gz
+	mkdir -p $(dir $@)
 	$(KRAKEN_BIN) --preload --db $(kraken_db) --threads $(threads) --fastq-input\
 	 --gzip-compressed --paired --check-names --only-classified-output --output $@ $^
 
 kraken/%_pe_kraken.report: kraken/%_pe_kraken.out
+	mkdir -p $(dir $@)
 	$(KRAKEN_REPORT_BIN) --db $(kraken_db) $< > $@
 
 .PHONY: clean
