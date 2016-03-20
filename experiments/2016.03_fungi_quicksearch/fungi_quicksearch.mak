@@ -46,9 +46,12 @@ endif
 
 #Binary config
 BWA_BIN := bwa
-BOWTIE2_BIN := bowtie2
 SAMTOOLS_BIN := samtools
 PICARD_BIN := java -Xmx16g -jar ~/tools/picard-tools/2.1.1/picard.jar
+KRAKEN_BIN := ~/tools/kraken/0.10.5-beta/kraken
+KRAKEN_REPORT_BIN := ~/tools/kraken/0.10.5-beta/kraken-report
+
+kraken_db= ~/fsbio/minikraken_20141208
 
 #Input files
 R1 := $(wildcard $(read_folder)/*_1.fastq.gz)
@@ -61,9 +64,9 @@ singles := $(wildcard $(read_folder)/*_single.fastq.gz)
 #Avoids the deletion of files because of gnu make behavior with implicit rules
 .SECONDARY:
 
-.PHONY: all bams stats md5_files build_bwa_idxs
+.PHONY: all bams stats kraken md5_files build_bwa_idxs
 
-all: bams stats
+all: bams stats kraken
 
 bams: $(MAPPER)/$(sample_name)_c_albicans.bam
 bams: $(MAPPER)/$(sample_name)_t_rubrum.bam
@@ -71,9 +74,8 @@ bams: $(MAPPER)/$(sample_name)_t_rubrum.bam
 stats: $(addprefix stats/$(sample_name)_c_albicans.$(MAPPER).bam,.flgstat .stats .depth.gz)
 stats: $(addprefix stats/$(sample_name)_t_rubrum.$(MAPPER).bam,.flgstat .stats .depth.gz)
 
-
-# c_albicans_fastqs: fastq/$(sample_name)_c_albicans.fastq
-# t_rubrum_fastqs: fastq/$(sample_name)_t_rubrum.fastq
+kraken: kraken/$(sample_name)_c_albicans_pe_kraken.report
+kraken: kraken/$(sample_name)_t_rubrum_pe_kraken.report
 
 # md5_files: $(MAPPER)/$(sample_name)_c_albicans.bam.md5
 # md5_files: $(MAPPER)/$(sample_name)_t_rubrum.bam.md5
@@ -135,12 +137,21 @@ stats/%.$(MAPPER).bam.depth.gz : $(MAPPER)/%.bam
 	md5sum $< > $@
 
 #*************************************************************************
-#Extract seqs - Not needed yet
+#Extract seqs
 #*************************************************************************
-# fastq/%.fastq: bwa/%.bam
-# 	mkdir -p $(dir $@)
-# 	$(PICARD_BIN) SamToFastq INPUT=$< FASTQ=$@
+fastq/%_1.fastq.gz fastq/%_2.fastq.gz: bwa/%.bam
+	mkdir -p $(dir $@)
+	$(PICARD_BIN) SamToFastq INPUT=$< FASTQ=$(word 1,$@) SECOND_END_FASTQ=$(word 2,$@)
 
+#*************************************************************************
+# Run Kraken with Minikraken db to detect spurious alignments
+#*************************************************************************
+kraken/%_pe_kraken.out: fastq/%_1.fastq.gz fastq/%_2.fastq.gz
+	$(KRAKEN_BIN) --preload --db $(kraken_db) --threads $(threads) --fastq-input\
+	 --gzip-compressed --paired --check-names --only-classified-output --output $@ $^
+
+kraken/%_pe_kraken.report: kraken/%_pe_kraken.out
+	$(KRAKEN_REPORT_BIN) --db $(kraken_db) $< > $@
 
 .PHONY: clean
 
