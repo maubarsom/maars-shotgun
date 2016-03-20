@@ -126,7 +126,7 @@ stats/%.$(MAPPER).bam.stats: $(MAPPER)/%.bam
 #Assumes bams are already sorted
 stats/%.$(MAPPER).bam.depth.gz : $(MAPPER)/%.bam
 	mkdir -p $(dir $@)
-	$(SAMTOOLS_BIN) depth - | gzip > $@
+	$(SAMTOOLS_BIN) depth $< | gzip > $@
 
 #*************************************************************************
 # Calculate checksums
