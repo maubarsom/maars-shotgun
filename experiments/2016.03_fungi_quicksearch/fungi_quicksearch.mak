@@ -48,10 +48,12 @@ endif
 BWA_BIN := bwa
 SAMTOOLS_BIN := samtools
 PICARD_BIN := java -Xmx16g -jar ~/tools/picard-tools/2.1.1/picard.jar
+DIAMOND_BIN := ~/tools/diamond/0.7.11/diamond
 KRAKEN_BIN := ~/tools/kraken/0.10.5-beta/kraken
 KRAKEN_REPORT_BIN := ~/tools/kraken/0.10.5-beta/kraken-report
 
 kraken_db= ~/fsbio/db/minikraken_20141208
+diamond_sprot_db=~/fsbio/db/swissprot/sprot
 
 #Input files
 R1 := $(wildcard $(read_folder)/*_1.fastq.gz)
@@ -64,9 +66,9 @@ singles := $(wildcard $(read_folder)/*_single.fastq.gz)
 #Avoids the deletion of files because of gnu make behavior with implicit rules
 .SECONDARY:
 
-.PHONY: all bams stats kraken md5_files build_bwa_idxs
+.PHONY: all bams stats kraken md5_files build_bwa_idxs diamond
 
-all: bams stats kraken
+all: bams stats diamond
 
 bams: $(MAPPER)/$(sample_name)_c_albicans.bam
 bams: $(MAPPER)/$(sample_name)_t_rubrum.bam
@@ -76,6 +78,9 @@ stats: $(addprefix stats/$(sample_name)_t_rubrum.$(MAPPER).bam,.flgstat .stats .
 
 kraken: kraken/$(sample_name)_c_albicans_pe_kraken.report
 kraken: kraken/$(sample_name)_t_rubrum_pe_kraken.report
+
+diamond_calbicans: diamond/$(sample_name)_c_albicans_diamond_sprot.sam.gz
+diamond_trubrum: diamond/$(sample_name)_t_rubrum_diamond_sprot.sam.gz
 
 # md5_files: $(MAPPER)/$(sample_name)_c_albicans.bam.md5
 # md5_files: $(MAPPER)/$(sample_name)_t_rubrum.bam.md5
@@ -142,6 +147,21 @@ stats/%.$(MAPPER).bam.depth.gz : $(MAPPER)/%.bam
 fastq/%_1.fastq.gz fastq/%_2.fastq.gz: bwa/%.bam
 	mkdir -p $(dir $@)
 	$(PICARD_BIN) SamToFastq INPUT=$< FASTQ=fastq/$*_1.fastq.gz SECOND_END_FASTQ=fastq/$*_2.fastq.gz
+
+fastq/%.fastq.gz: bwa/%.bam
+	mkdir -p $(dir $@)
+	$(PICARD_BIN) SamToFastq INPUT=$< FASTQ=$@ INTERLEAVE=True
+
+#*************************************************************************
+# Run Diamond against sprot
+#*************************************************************************
+diamond/%_diamond_sprot.daa : fastq/%.fastq.gz 
+	mkdir -p $(dir $@)
+	$(DIAMOND_BIN) blastx --sensitive -p $(threads) --db $(diamond_sprot_db) --query $< \
+		--id 80 --compress 1 --daa $@ --tmpdir $(TMP_DIR) --seg yes
+
+diamond/%.sam.gz : diamond/%.daa
+	$(DIAMOND_BIN) view --daa $< --out $(basename $@) --outfmt sam --compress 1
 
 #*************************************************************************
 # Run Kraken with Minikraken db to detect spurious alignments

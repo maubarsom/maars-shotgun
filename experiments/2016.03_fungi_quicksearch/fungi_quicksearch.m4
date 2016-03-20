@@ -12,4 +12,5 @@ module load general/JRE/1.8.0_65
 
 makefile=/users/maubar/workspace/maars-shotgun/experiments/2016.03_fungi_quicksearch/fungi_quicksearch.mak
 
-time make -r -f ${makefile} sample_name=_SAMPLE_ read_folder=reads threads=_THREADS_ all
+time make -r -f ${makefile} sample_name=_SAMPLE_ read_folder=reads threads=_THREADS_ diamond_calbicans
+time make -r -f ${makefile} sample_name=_SAMPLE_ read_folder=reads threads=_THREADS_ diamond_trubrum
