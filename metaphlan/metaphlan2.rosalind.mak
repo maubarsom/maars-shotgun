@@ -22,7 +22,7 @@ threads := $(shell nproc)
 endif
 
 #Metaphlan bin and db config
-mpa_dir := /users/maubar/tools/metaphlan2/4864b9107195
+mpa_dir := /users/maubar/tools/metaphlan2/5424bb911dfc
 
 mpa_bin := $(mpa_dir)/metaphlan2.py
 mpa_pkl := $(mpa_dir)/db_v20/mpa_v20_m200.pkl
@@ -36,6 +36,8 @@ fq_ext:=fastq.gz
 .PHONY: all
 
 all: $(sample_name)_mpa2_relAbAndReads.txt
+
+strain: $(sample_name)_mpa2_p_acnes.txt
 
 #******************************************************************
 # Concat all reads into a single file
@@ -57,10 +59,10 @@ $(sample_name)_mpa2.txt: $(TMP_DIR)/$(sample_name).$(fq_ext)
 ifndef RERUN
 # New processing command with MPA2, adds the rel_ab_w_reads_stats parameter
 # to include estimated reads mapping to each clade and sample_id_key identifier
-$(sample_name)_mpa2_relAbAndReads.txt: $(TMP_DIR)/$(sample_name).$(fq_ext)
+%_mpa2_relAbAndReads.txt: $(TMP_DIR)/%.$(fq_ext)
 	$(mpa_bin) --mpa_pkl $(mpa_pkl) --bowtie2db $(mpa_bowtie2db) \
-		--bowtie2out $(basename $@).bowtie2.bz2 --nproc $(threads) --input_type multifastq \
-		--sample_id_key $(sample_name) -t rel_ab_w_read_stats \
+		--bowtie2out $*.bowtie2.bz2 --nproc $(threads) --input_type multifastq \
+		--sample_id_key $* -t rel_ab_w_read_stats \
 		--biom $(basename $@).biom $< $@
 else
 # Generate the new abundance calculation from the mapping generated
@@ -71,3 +73,10 @@ $(sample_name)_mpa2_relAbAndReads.txt: $(sample_name)_mpa2.bowtie2.bz2
 		--sample_id_key $(sample_name) -t rel_ab_w_read_stats \
 		--biom $(basename $@).biom $< $@
 endif
+
+#Strain tracking test
+$(sample_name)_mpa2_p_acnes.txt: $(sample_name)_mpa2.bowtie2.bz2
+	$(mpa_bin) --mpa_pkl $(mpa_pkl) --nproc $(threads) \
+		 --input_type bowtie2out --sample_id_key $(sample_name) \
+		 -t clade_specific_strain_tracker --clade s__Propionibacterium_acnes --min_ab 1.0 \
+		 $< > $@
