@@ -33,9 +33,11 @@ fq_ext:=fastq.gz
 
 .DELETE_ON_ERROR:
 
-.PHONY: all
+.PHONY: all relAbAndReads strain
 
-all: $(sample_name)_mpa2_relAbAndReads.txt
+all: $(sample_name)_mpa2.txt
+
+relAbAndReads: $(sample_name)_mpa2_relAbAndReads.txt
 
 strain: $(sample_name)_mpa2_p_acnes.txt
 
@@ -48,30 +50,36 @@ $(TMP_DIR)/$(sample_name).$(fq_ext) : $(wildcard $(read_folder)/*.$(fq_ext))
 #******************************************************************
 # Run Metaphlan2 on the concat'd fastq file
 #******************************************************************
-#Old processing command for first files
-# Lacks the rel_ab_w_read_stats for the output, but the
-# mapping step is equivalent for all
-$(sample_name)_mpa2.txt: $(TMP_DIR)/$(sample_name).$(fq_ext)
-	$(mpa_bin) --mpa_pkl $(mpa_pkl) --bowtie2db $(mpa_bowtie2db) \
-		--bowtie2out $(basename $@).bowtie2.bz2 --nproc $(threads) --input_type multifastq \
-		--biom $(basename $@).biom $< $@
-
 ifndef RERUN
 # New processing command with MPA2, adds the rel_ab_w_reads_stats parameter
 # to include estimated reads mapping to each clade and sample_id_key identifier
-%_mpa2_relAbAndReads.txt: $(TMP_DIR)/%.$(fq_ext)
+$(sample_name)_mpa2.txt: $(TMP_DIR)/$(sample_name).$(fq_ext)
 	$(mpa_bin) --mpa_pkl $(mpa_pkl) --bowtie2db $(mpa_bowtie2db) \
-		--bowtie2out $*.bowtie2.bz2 --nproc $(threads) --input_type multifastq \
-		--sample_id_key $* -t rel_ab_w_read_stats \
+		--bowtie2out $(basename $@).bowtie2.bz2 --nproc $(threads) --input_type multifastq \
+		--sample_id_key $(sample_name) \
 		--biom $(basename $@).biom $< $@
+
+$(sample_name)_mpa2_relAbAndReads.txt: $(TMP_DIR)/$(sample_name).$(fq_ext)
+	$(mpa_bin) --mpa_pkl $(mpa_pkl) --bowtie2db $(mpa_bowtie2db) \
+		--bowtie2out $(basename $@).bowtie2.bz2 --nproc $(threads) --input_type multifastq \
+		--sample_id_key $(sample_name) -t rel_ab_w_read_stats \
+		--biom $(basename $@).biom $< $@
+
 else
-# Generate the new abundance calculation from the mapping generated
-# by the old command
+# Generate the new abundance calculation from and older mapping
+$(sample_name)_mpa2.txt: $(sample_name)_mpa2.bowtie2.bz2
+	$(mpa_bin) --mpa_pkl $(mpa_pkl) --bowtie2db $(mpa_bowtie2db) \
+		--nproc $(threads) --input_type bowtie2out \
+		--sample_id_key $(sample_name) \
+		--biom $(basename $@).biom $< $@
+
+
 $(sample_name)_mpa2_relAbAndReads.txt: $(sample_name)_mpa2.bowtie2.bz2
 	$(mpa_bin) --mpa_pkl $(mpa_pkl) --bowtie2db $(mpa_bowtie2db) \
 		--nproc $(threads) --input_type bowtie2out \
 		--sample_id_key $(sample_name) -t rel_ab_w_read_stats \
 		--biom $(basename $@).biom $< $@
+
 endif
 
 #Strain tracking test
