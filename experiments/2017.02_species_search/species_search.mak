@@ -67,13 +67,16 @@ singles := $(wildcard $(read_folder)/*_single.fastq.gz)
 #Avoids the deletion of files because of gnu make behavior with implicit rules
 .SECONDARY:
 
-.PHONY: all bams stats diamond
+.PHONY: all bams stats diamond rmdup_bams rmdup_stats
 
-all: bams stats 
+all: rmdup_bams rmdup_stats
 
 bams: $(MAPPER)/$(sample_name)_$(species).bam.bai
+stats: $(addprefix stats/$(sample_name)_$(species).bam,.flgstat .cov.gz)
 
-stats: $(addprefix stats/$(sample_name)_$(species).$(MAPPER).bam,.flgstat .stats .cov.gz .tiddit.tab)
+rmdup_bams: $(MAPPER)/$(sample_name)_$(species)_rmdup.bam.bai
+rmdup_stats: $(addprefix stats/$(sample_name)_$(species)_rmdup.bam,.flgstat .cov.gz)
+
 
 #*************************************************************************
 #Map to species genome with BWA MEM
@@ -90,22 +93,25 @@ bwa/%_$(species).bam: $(R1) $(R2) $(singles)
 	$(SAMTOOLS_BIN) sort -@ $(threads) -o $(TMP_DIR)/$*_$(species)_single_sorted.bam $(TMP_DIR)/$*_$(species)_single.bam
 	$(SAMTOOLS_BIN) merge -@ $(threads) -r $@ $(TMP_DIR)/$*_$(species)_pe_sorted.bam $(TMP_DIR)/$*_$(species)_single_sorted.bam
 
+bwa/%_rmdup.bam: bwa/%.bam
+	$(PICARD_BIN) MarkDuplicates I=$< O=$@ M=bwa/$*.metrics REMOVE_DUPLICATES=true 
+
 %.bam.bai: %.bam
 	$(SAMTOOLS_BIN) index $<
 
 #*************************************************************************
 #Calculate stats
 #*************************************************************************
-stats/%.$(MAPPER).bam.flgstat: $(MAPPER)/%.bam
+stats/%.bam.flgstat: $(MAPPER)/%.bam
 	mkdir -p $(dir $@)
 	$(SAMTOOLS_BIN) flagstat $< > $@
 
-stats/%.$(MAPPER).bam.stats: $(MAPPER)/%.bam
+stats/%.bam.stats: $(MAPPER)/%.bam
 	mkdir -p $(dir $@)
 	$(SAMTOOLS_BIN) stats $< > $@
 
 #Assumes bams are already sorted
-stats/%.$(MAPPER).bam.depth.gz : $(MAPPER)/%.bam
+stats/%.bam.depth.gz : $(MAPPER)/%.bam
 	mkdir -p $(dir $@)
 	$(SAMTOOLS_BIN) depth $< | gzip > $@
 
@@ -114,13 +120,13 @@ stats/%.$(MAPPER).bam.depth.gz : $(MAPPER)/%.bam
 #*************************************************************************
 species_fasta_ref:=~/fsbio/db/genomes/$(species)/$(species)_genome.fasta
 
-stats/%.$(MAPPER).bam.cov.gz: $(MAPPER)/%.bam
+stats/%.bam.cov.gz: $(MAPPER)/%.bam
 	mkdir -p $(dir $@)
 	$(GATK_BIN) -T DepthOfCoverage --omitIntervalStatistics --omitPerSampleStats --omitLocusTable -I $< -o $(TMP_DIR)/$(notdir $(basename $@)) -R $(species_fasta_ref)
 	ls $(TMP_DIR)
 	cut -f1,2 $(TMP_DIR)/$(notdir $(basename $@)) | gzip > $@
 
-stats/%.$(MAPPER).bam.tiddit.tab: $(MAPPER)/%.bam
+stats/%.bam.tiddit.tab: $(MAPPER)/%.bam
 	mkdir -p $(dir $@)
 	$(TIDDIT_BIN) --cov --bin_size 500 --bam $< --output $(basename $@)
 
