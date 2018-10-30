@@ -45,7 +45,7 @@ process panphlan_map{
     source activate panphlan
     zcat *.fq.gz | ${params.panphlan_dir}/panphlan_map.py --fastx fastq -p 8 --verbose --tmp \${TMPDIR} \
             -c ${species_id} --i_bowtie2_indexes ${params.panphlan_db_dir}/${species_id} \
-            -o ${sample_id}.csv.bz2 
+            -o ${sample_id}.csv.bz2
     """
 }
 
